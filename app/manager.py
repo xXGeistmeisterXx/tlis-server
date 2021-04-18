@@ -1,4 +1,4 @@
-# This program does all he heavy lifting for the actual server in main.py
+# This program does all he heavy lifting for the actual server in main.py (and for command.py)
 
 import mariadb
 import hashlib
@@ -11,7 +11,6 @@ PASSWORD = ""
 def getconn():
 	connection = mariadb.connect(user="root", host="mariadb", password=PASSWORD, autocommit=True)
 	cur = connection.cursor()
-	# cur.execute("SET ROLE tlis_sysadmin;")
 	cur.execute("USE TLIS;")
 	cur.close()
 	return connection
@@ -69,9 +68,10 @@ types = {
 		{
 		"db":"techs",
 		"template":{"id": 0, "customer_id": 0, "username":""},
-		"create":"INSERT INTO techs (customer_id, username, password, salt) VALUES (?, ?, ?, ?) RETURNING id;",
-		"update": "UPDATE techs SET customer_id = ?, password = ?, salt = ? WHERE id = ?;",
-		"get": "SELECT id, customer_id, username FROM techs;"
+		"create":"INSERT INTO techs (customer_id, username, permission, password, salt) VALUES (?, ?, ?, ?, ?) RETURNING id;",
+		"update": "UPDATE techs SET customer_id = ?, username = ?, permission = ?, password = ?, salt = ? WHERE id = ?;",
+		"get": "SELECT id, customer_id, username FROM techs;",
+		"perms": ["tlis_sysadmin", "tlis_manager", "tlis_tech"]
 		},
 	"AssetType":
 		{
@@ -112,6 +112,13 @@ def run(data):
 
 	if data["action"] == "ADD":
 
+		if(data["type"] == "Tech"):
+			ppassword = data["password"]
+			data["salt"] = os.urandom(32)
+			data["password"] = hashlib.pbkdf2_hmac('sha256', data["password"].encode('utf-8'), salt, 100000)
+			query(f"CREATE USER ? INDENTIFIED BY '?'", (data['username'], ppassword), ret=False)
+			query(f"GRANT ? TO ?", (types['Tech']['perms'][data['permission']], data['username']), ret=False)
+
 		print(data.values())
 		data["id"] = query(types[data["type"]]["create"], list(data.values())[2:])[0][0]
 
@@ -119,15 +126,23 @@ def run(data):
 
 		id = data["id"]
 		del data["id"]
-		print(data)
-		print(list(data.values())[2:])
-		print([id] + list(data.values())[2:])
 		query(types[data["type"]]["update"], list(data.values())[2:] + [id], False)
 		data["id"] = id
 
+		if(data["type"] == "Tech"):
+			for role in types["Tech"]["perms"]:
+				users = query(f"SELECT user FROM mysql.user WHERE is_role='?'", (role))[0]
+				if(data["username"] in users):
+					query(f"REVOKE ? FROM ?", (role, username), ret=False)
+			query(f"GRANT ? TO ?", (types['Tech']['perms'][data['permission']], data['username']), ret=False)
+
 	elif data["action"] == "DELETE":
 
-		query(f"DELETE FROM {types[data['type']]['db']} WHERE id = {data['id']}", ret=False)
+		if(data["type"] == "Tech"):
+			username = query(f"SELECT username FROM techs WHERE id = ?", (data['id']))[0][0]
+			query(f"DROP USER ?", (username), ret=False)
+
+		query(f"DELETE FROM ? WHERE id = ?", (types[data['type']]['db'], data['id']), ret=False)
 
 	else:
 		data = {"type":"Error", "error_type":"TOM", "reason":"no action given"}
@@ -139,10 +154,11 @@ def auth(data):
 
 	print("auth has begun")
 
-	result = query("SELECT password, salt FROM techs WHERE username = ?;", data["username"])[0]
+	result = query("SELECT password, salt, permission FROM techs WHERE username = ?;", data["username"])[0]
 
 	key = result[0]
 	salt = result[1]
+	permission = result[2]
 	password_to_check = data["password"]
 	print(password_to_check)
 
@@ -159,11 +175,11 @@ def auth(data):
 
 	if new_key == key:
 
-		return True
+		return True, permission
 
 	else:
 
-		return False
+		return False, permission
 
 # gets all record in db and sends to users
 def login():

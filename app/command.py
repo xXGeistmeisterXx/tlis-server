@@ -10,6 +10,7 @@ import manager
 import csv
 import os
 import hashlib
+from pathlib import Path
 
 # get dbs from the manager file
 dbs = manager.types
@@ -19,21 +20,25 @@ description = '''
 Helper script for the TLIS server
 '''
 
+def newopen(string):
+	path = "data/" + string
+	return open(path, "r", newline='')
+
 # parser is what allows for auto command line input
 parser = argparse.ArgumentParser(prog='tlis-server', description=description)
 
 parser.add_argument('database_name',
-                    help='Name of database you are inserting data into',
+					help='Name of database you are inserting data into',
 					choices=finaldbs)
 
-parser.add_argument('csv_path', type=open,
-                    help='Path to the csv file')
+parser.add_argument('csv_path', type=newopen,
+					help='Path to the csv file')
 
 parser.add_argument('-c', '--clear', action='store_true',
-                    help='Clears the database')
+					help='Clears the database')
 
 parser.add_argument('-n', '--no-header', action='store_true',
-                    help='Acts like the csv file has no header', dest="no_header")
+					help='Acts like the csv file has no header', dest="no_header")
 
 # get args
 args = parser.parse_args()
@@ -47,11 +52,11 @@ csv_reader = csv.reader(csv_file, delimiter=',')
 # process csv with or without headers
 line_count = 0
 for row in csv_reader:
-    if line_count == 0 and not args.no_header:
-        line_count += 1
-    else:
-        rows.append(row)
-        line_count += 1
+	if line_count == 0 and not args.no_header:
+		line_count += 1
+	else:
+		rows.append(row)
+		line_count += 1
 
 # get that password
 manager.PASSWORD = os.getenv('DB_PASSWORD')

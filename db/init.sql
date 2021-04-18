@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS techs (
 	id MEDIUMINT KEY AUTO_INCREMENT,
 	customer_id MEDIUMINT,
 	username VARCHAR(32),
+	permission TINYINT,
 	password BINARY(128),
 	salt BINARY(32)
 );

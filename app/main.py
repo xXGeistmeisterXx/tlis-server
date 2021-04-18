@@ -51,7 +51,8 @@ class TLIP(LineReceiver):
 
 	def handle_AUTH(self, data):
 		print("AUTH")
-		if not manager.auth(data):
+		authed, permission = manager.auth(data)
+		if not authed:
 			self.transport.abortConnection()
 		else:
 			if data["username"] in self.users:
@@ -59,14 +60,18 @@ class TLIP(LineReceiver):
 			self.username = data["username"]
 			self.users[data["username"]] = self
 			self.state = "CONNECTED"
+			self.permission = permission
 			for obj in manager.login():
-				print(obj)
 				self.sendLine(json.dumps(obj).encode("utf-8"))
 
 	def handle_REQUEST(self, data):
 		print("REQUEST")
-		if data["type"] == "Logout" or data["type"] == "Tech":
+		if data["type"] == "Logout":
 			self.transport.abortConnection()
+
+		if date["type"] == "Tech" and not permission == 0:
+			self.transport.abortConnection()
+
 		if data["type"] in manager.types:
 			try:
 				data = manager.run(data)

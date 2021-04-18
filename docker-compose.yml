@@ -8,6 +8,8 @@ services:
     build:
       context: .
       dockerfile: app.Dockerfile
+    volumes:
+      - ./data:/app/data
     ports:
       - 6969:6969
     environment:
@@ -22,13 +24,10 @@ services:
       context: .
       dockerfile: mariadb.Dockerfile
     volumes:
-      - tlis-db:/var/lib/mysql
+      - ./mysql:/var/lib/mysql
     ports:
       - 3307:3306
     environment:
       MYSQL_ROOT_PASSWORD: changeMe123
       MYSQL_DATABASE: TLIS
     restart: always
-
-volumes:
-  tlis-db:

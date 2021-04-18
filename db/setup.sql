@@ -1,6 +1,10 @@
 CREATE ROLE IF NOT EXISTS tlis_sysadmin WITH ADMIN `root`@`%`;
 
-GRANT INSERT, DELETE, UPDATE, SELECT ON TLIS.* TO tlis_sysadmin;
+GRANT ALL PRIVILEGES ON *.* TO TO tlis_sysadmin;
+
+CREATE ROLE IF NOT EXISTS tlis_manager WITH ADMIN `root`@`%`;
+
+GRANT INSERT, DELETE, UPDATE, SELECT ON TLIS.* TO TO tlis_manager;
 
 CREATE ROLE IF NOT EXISTS tlis_tech WITH ADMIN `root`@`%`;
 
